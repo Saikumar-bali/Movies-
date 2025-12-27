@@ -1,167 +1,373 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>MovieBlast</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
-    }
-
-    header {
-      padding: 15px;
-      background: #020617;
-      display: flex;
-      gap: 10px;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
-    }
-
-    button {
-      padding: 10px 16px;
-      background: #22c55e;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    .movies {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 15px;
-      padding: 15px;
-    }
-
-    .movie {
-      background: #020617;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-
-    .movie img {
-      width: 100%;
-      height: 240px;
-      object-fit: cover;
-      background: #111;
-    }
-
-    .movie-content {
-      padding: 10px;
-    }
-
-    .movie-title {
-      font-size: 14px;
-      margin-bottom: 8px;
-      min-height: 36px;
-    }
-
-    .play-btn {
-      width: 100%;
-      padding: 8px;
-      background: #3b82f6;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      cursor: pointer;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WatchHub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background: #111; color: #fff; }
+        header { background: #000; padding: 20px; text-align: center; border-bottom: 2px solid #00a8ff; }
+        h1 { color: #00a8ff; font-size: 24px; }
+        .tabs { margin: 20px 0; text-align: center; }
+        .tab { background: #222; border: none; color: #aaa; padding: 10px 20px; margin: 0 5px; border-radius: 5px; cursor: pointer; }
+        .tab.active { background: #00a8ff; color: #fff; }
+        .search { text-align: center; margin: 20px; }
+        .search input { padding: 10px; width: 300px; max-width: 80%; border-radius: 5px; border: 1px solid #333; background: #222; color: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; padding: 20px; }
+        .card { background: #222; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+        .card:hover { transform: scale(1.05); }
+        .card img { width: 100%; height: 250px; object-fit: cover; }
+        .card-info { padding: 10px; }
+        .card-title { font-size: 14px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-meta { font-size: 12px; color: #aaa; margin-top: 5px; }
+        .pagination { text-align: center; margin: 30px 0; }
+        .page-btn { background: #222; border: 1px solid #333; color: #fff; padding: 8px 15px; margin: 0 5px; cursor: pointer; border-radius: 5px; }
+        .page-btn.active { background: #00a8ff; border-color: #00a8ff; }
+        .page-info { margin: 10px; color: #aaa; font-size: 14px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; padding: 20px; overflow: auto; }
+        .modal-content { background: #222; max-width: 800px; margin: 40px auto; border-radius: 10px; padding: 20px; }
+        .close { float: right; font-size: 28px; cursor: pointer; }
+        .loader { text-align: center; padding: 40px; color: #00a8ff; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #00a8ff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        footer { text-align: center; padding: 20px; color: #666; font-size: 12px; border-top: 1px solid #222; }
+        
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px; }
+        }
+    </style>
 </head>
 <body>
-
-<header>
-  <input type="text" id="searchInput" placeholder="Search movies..." />
-  <button onclick="searchMovies()">Search</button>
-</header>
-
-<div class="movies" id="movies"></div>
+    <header>
+        <h1>WatchHub</h1>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('movies')">Movies</button>
+            <button class="tab" onclick="switchTab('series')">Series</button>
+        </div>
+        <div class="search">
+            <input type="text" id="searchInput" placeholder="Search..." onkeypress="if(event.key=='Enter')search()">
+        </div>
+    </header>
+    
+    <div id="content">
+        <div id="moviesGrid" class="grid"></div>
+        <div id="seriesGrid" class="grid" style="display:none"></div>
+        <div id="loader" class="loader"><div class="spinner"></div>Loading...</div>
+    </div>
+    
+    <div id="pagination" class="pagination"></div>
+    
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <footer>© 2025 WatchHub</footer>
 
 <script>
-  const BASE_URL = "https://app-backend-fz6a.onrender.com";
-  const API_KEY = "MOVIEBLAST_SECURE_2025";
+const config = {
+    key: "MOVIEBLAST_SECURE_2025",
+    base: "https://app-backend-fz6a.onrender.com",
+    moviesPerPage: 40,
+    seriesPerPage: 40
+};
 
-  const moviesDiv = document.getElementById("movies");
+let currentTab = 'movies';
+let currentPage = 1;
+let totalMovies = 1800;
+let totalSeries = 280;
+let currentData = [];
+let isSearching = false;
+let searchQuery = '';
 
-  // Load movies on start
-  fetchMovies();
+document.addEventListener('DOMContentLoaded', init);
 
-  function fetchMovies() {
-    fetch(`${BASE_URL}/api/movies`, {
-      headers: {
-        "x-api-key": API_KEY
-      }
-    })
-    .then(res => res.json())
-    .then(showMovies)
-    .catch(err => {
-      moviesDiv.innerHTML = "<p>Error loading movies</p>";
-      console.error(err);
-    });
-  }
+function init() {
+    loadMovies(1);
+    setInterval(checkBackend, 30000); // Check every 30 seconds
+}
 
-  function searchMovies() {
-    const query = document.getElementById("searchInput").value.trim();
-    if (!query) {
-      fetchMovies();
-      return;
+async function loadMovies(page) {
+    currentTab = 'movies';
+    currentPage = page;
+    showLoader();
+    
+    try {
+        const start = (page - 1) * config.moviesPerPage;
+        const end = start + config.moviesPerPage;
+        const url = searchQuery 
+            ? `${config.base}/api/movies?search=${encodeURIComponent(searchQuery)}`
+            : `${config.base}/api/movies`;
+        
+        const response = await fetch(url, {
+            headers: { 'x-api-key': config.key }
+        });
+        
+        if (!response.ok) throw new Error('API Error');
+        
+        const data = await response.json();
+        currentData = Array.isArray(data) ? data : [];
+        
+        // For search, show all results without pagination
+        if (searchQuery) {
+            renderMovies(currentData);
+            renderPagination(1, 1);
+        } else {
+            const pageData = currentData.slice(start, end);
+            renderMovies(pageData);
+            const totalPages = Math.ceil(totalMovies / config.moviesPerPage);
+            renderPagination(page, totalPages);
+        }
+        
+        hideLoader();
+    } catch (error) {
+        showError('Service waking up...');
+        setTimeout(() => loadMovies(page), 2000);
     }
+}
 
-    fetch(`${BASE_URL}/api/movies?search=${encodeURIComponent(query)}`, {
-      headers: {
-        "x-api-key": API_KEY
-      }
-    })
-    .then(res => res.json())
-    .then(showMovies)
-    .catch(err => console.error(err));
-  }
-
-  function showMovies(movies) {
-    moviesDiv.innerHTML = "";
-
-    if (!movies || movies.length === 0) {
-      moviesDiv.innerHTML = "<p>No movies found</p>";
-      return;
+async function loadSeries(page) {
+    currentTab = 'series';
+    currentPage = page;
+    showLoader();
+    
+    try {
+        const start = (page - 1) * config.seriesPerPage;
+        const end = start + config.seriesPerPage;
+        const url = searchQuery 
+            ? `${config.base}/api/series?search=${encodeURIComponent(searchQuery)}`
+            : `${config.base}/api/series`;
+        
+        const response = await fetch(url, {
+            headers: { 'x-api-key': config.key }
+        });
+        
+        if (!response.ok) throw new Error('API Error');
+        
+        const data = await response.json();
+        currentData = Array.isArray(data) ? data : [];
+        
+        if (searchQuery) {
+            renderSeries(currentData);
+            renderPagination(1, 1);
+        } else {
+            const pageData = currentData.slice(start, end);
+            renderSeries(pageData);
+            const totalPages = Math.ceil(totalSeries / config.seriesPerPage);
+            renderPagination(page, totalPages);
+        }
+        
+        hideLoader();
+    } catch (error) {
+        showError('Service waking up...');
+        setTimeout(() => loadSeries(page), 2000);
     }
+}
 
+function renderMovies(movies) {
+    const grid = document.getElementById('moviesGrid');
+    grid.innerHTML = '';
+    
+    if (movies.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#666">No movies found</div>';
+        return;
+    }
+    
     movies.forEach(movie => {
-      const div = document.createElement("div");
-      div.className = "movie";
-
-      div.innerHTML = `
-        <img src="${movie.poster_path || 'https://via.placeholder.com/300x450?text=No+Image'}">
-        <div class="movie-content">
-          <div class="movie-title">${movie.title || "Unknown Title"}</div>
-          <button class="play-btn" onclick="playMovie('${movie.video_url || ""}')">
-            ▶ Play
-          </button>
-        </div>
-      `;
-
-      moviesDiv.appendChild(div);
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <img src="${movie.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\"></text></svg>
+            <div class="card-info">
+                <div class="card-title">${movie.title || 'Unknown'}</div>
+                <div class="card-meta">${movie.vote_average ? '★ ' + movie.vote_average : ''} ${movie.release_date ? '• ' + movie.release_date.substring(0,4) : ''}</div>
+            </div>
+        `;
+        card.onclick = () => showMovieDetails(movie);
+        grid.appendChild(card);
     });
-  }
+}
 
-  function playMovie(url) {
-    if (!url) {
-      alert("Video not available");
-      return;
+function renderSeries(series) {
+    const grid = document.getElementById('seriesGrid');
+    grid.innerHTML = '';
+    
+    if (series.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#666">No series found</div>';
+        return;
     }
-    window.open(url, "_blank");
-  }
-</script>
+    
+    series.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <img src="${item.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\"></text></svg>
+            <div class="card-info">
+                <div class="card-title">${item.name || 'Unknown'}</div>
+                <div class="card-meta">${item.vote_average ? '★ ' + item.vote_average : ''} ${item.first_air_date ? '• ' + item.first_air_date.substring(0,4) : ''}</div>
+            </div>
+        `;
+        card.onclick = () => showSeriesDetails(item);
+        grid.appendChild(card);
+    });
+}
 
+function renderPagination(current, total) {
+    const pagination = document.getElementById('pagination');
+    
+    if (total <= 1 || isSearching) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    const maxPages = 5;
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxPages - 1);
+    
+    if (current > 1) {
+        html += `<button class="page-btn" onclick="goToPage(${current - 1})">‹</button>`;
+    }
+    
+    for (let i = start; i <= end; i++) {
+        html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+    }
+    
+    if (current < total) {
+        html += `<button class="page-btn" onclick="goToPage(${current + 1})">›</button>`;
+    }
+    
+    html += `<div class="page-info">Page ${current} of ${total}</div>`;
+    pagination.innerHTML = html;
+}
+
+function goToPage(page) {
+    if (currentTab === 'movies') {
+        loadMovies(page);
+    } else {
+        loadSeries(page);
+    }
+    window.scrollTo(0, 0);
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    document.getElementById('moviesGrid').style.display = tab === 'movies' ? 'grid' : 'none';
+    document.getElementById('seriesGrid').style.display = tab === 'series' ? 'grid' : 'none';
+    
+    if (tab === 'movies') {
+        loadMovies(1);
+    } else {
+        loadSeries(1);
+    }
+}
+
+function search() {
+    searchQuery = document.getElementById('searchInput').value.trim();
+    isSearching = !!searchQuery;
+    
+    if (currentTab === 'movies') {
+        loadMovies(1);
+    } else {
+        loadSeries(1);
+    }
+}
+
+function showMovieDetails(movie) {
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+    
+    const videoUrl = movie.video_url || (movie.videos && movie.videos[0]?.link) || '#';
+    
+    content.innerHTML = `
+        <h2>${movie.title}</h2>
+        <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin:20px 0;">
+            <img src="${movie.poster_path || ''}" style="width:100%;border-radius:5px;">
+            <div>
+                <p><strong>Release:</strong> ${movie.release_date || 'N/A'}</p>
+                <p><strong>Rating:</strong> ${movie.vote_average || 'N/A'}/10</p>
+                <p><strong>Runtime:</strong> ${movie.runtime || 'N/A'} min</p>
+                <p><strong>Genres:</strong> ${movie.genresname || 'N/A'}</p>
+                <p style="margin-top:10px;">${movie.overview || 'No description'}</p>
+                ${videoUrl !== '#' ? `<button style="background:#00a8ff;color:#fff;border:none;padding:10px 20px;margin-top:20px;border-radius:5px;cursor:pointer" onclick="window.open('${videoUrl}', '_blank')">▶ Watch Now</button>` : ''}
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function showSeriesDetails(series) {
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+    
+    content.innerHTML = `
+        <h2>${series.name}</h2>
+        <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin:20px 0;">
+            <img src="${series.poster_path || ''}" style="width:100%;border-radius:5px;">
+            <div>
+                <p><strong>First Air:</strong> ${series.first_air_date || 'N/A'}</p>
+                <p><strong>Rating:</strong> ${series.vote_average || 'N/A'}/10</p>
+                <p><strong>Seasons:</strong> ${series.seasons?.length || 0}</p>
+                <p><strong>Genres:</strong> ${series.genresname || 'N/A'}</p>
+                <p style="margin-top:10px;">${series.overview || 'No description'}</p>
+            </div>
+        </div>
+        ${series.seasons && series.seasons.length > 0 ? `
+        <h3 style="margin-top:20px;">Seasons</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
+            ${series.seasons.map(season => `
+                <div style="background:#333;padding:10px;border-radius:5px;width:100px;text-align:center;">
+                    <div>Season ${season.season_number}</div>
+                    <div style="font-size:12px;color:#aaa;">${season.episodes?.length || 0} episodes</div>
+                </div>
+            `).join('')}
+        </div>
+        ` : ''}
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+function showLoader() {
+    document.getElementById('loader').style.display = 'block';
+}
+
+function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+}
+
+function showError(msg) {
+    const grid = document.getElementById(currentTab + 'Grid');
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#00a8ff">${msg}</div>`;
+    hideLoader();
+}
+
+async function checkBackend() {
+    try {
+        await fetch(config.base, { timeout: 5000 });
+    } catch (e) {
+        console.log('Backend check');
+    }
+}
+
+// Close modal on outside click
+window.onclick = function(event) {
+    const modal = document.getElementById('modal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
 </body>
-  </html>
+</html>
