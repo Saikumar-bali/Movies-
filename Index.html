@@ -26,15 +26,40 @@
         .page-btn.active { background: #00a8ff; border-color: #00a8ff; }
         .page-info { margin: 10px; color: #aaa; font-size: 14px; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; padding: 20px; overflow: auto; }
-        .modal-content { background: #222; max-width: 800px; margin: 40px auto; border-radius: 10px; padding: 20px; }
+        .modal-content { background: #222; max-width: 900px; margin: 40px auto; border-radius: 10px; padding: 20px; }
         .close { float: right; font-size: 28px; cursor: pointer; }
         .loader { text-align: center; padding: 40px; color: #00a8ff; }
         .spinner { border: 3px solid #333; border-top: 3px solid #00a8ff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         footer { text-align: center; padding: 20px; color: #666; font-size: 12px; border-top: 1px solid #222; }
         
+        /* Episode Styles */
+        .season-section { margin: 20px 0; }
+        .season-header { background: #333; padding: 12px 15px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .season-header:hover { background: #3a3a3a; }
+        .episode-list { display: none; padding: 15px; background: #1a1a1a; border-radius: 5px; margin-top: 5px; }
+        .episode-item { padding: 10px; border-bottom: 1px solid #333; }
+        .episode-item:last-child { border-bottom: none; }
+        .episode-title { flex: 1; }
+        .episode-number { background: #00a8ff; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-right: 10px; }
+        .play-btn { background: #28a745; color: white; border: none; padding: 5px 15px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-top: 5px; }
+        .play-btn:hover { background: #218838; }
+        .quality-options { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+        .quality-btn { background: #444; color: #ccc; border: 1px solid #555; padding: 3px 10px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+        .quality-btn:hover { background: #555; }
+        .quality-btn.active { background: #00a8ff; color: white; border-color: #00a8ff; }
+        
+        /* Video Player Modal */
+        .video-modal { max-width: 1000px; }
+        .video-container { width: 100%; height: 0; padding-bottom: 56.25%; position: relative; background: #000; }
+        #videoPlayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .video-info { padding: 15px; background: #1a1a1a; border-radius: 5px; margin-top: 15px; }
+        .video-title { color: #00a8ff; font-size: 18px; margin-bottom: 10px; }
+        
         @media (max-width: 768px) {
             .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px; }
+            .video-modal { margin: 10px; padding: 10px; }
+            .quality-options { gap: 5px; }
         }
     </style>
 </head>
@@ -58,10 +83,27 @@
     
     <div id="pagination" class="pagination"></div>
     
+    <!-- Series/Movie Detail Modal -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
             <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <!-- Video Player Modal -->
+    <div id="videoModal" class="modal">
+        <div class="modal-content video-modal">
+            <span class="close" onclick="closeVideoModal()">&times;</span>
+            <div class="video-container">
+                <video id="videoPlayer" controls playsinline>
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title" id="videoTitle">Now Playing</div>
+                <div id="videoDescription"></div>
+            </div>
         </div>
     </div>
     
@@ -82,12 +124,13 @@ let totalSeries = 280;
 let currentData = [];
 let isSearching = false;
 let searchQuery = '';
+let currentSeriesDetails = null;
 
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     loadMovies(1);
-    setInterval(checkBackend, 30000); // Check every 30 seconds
+    setInterval(checkBackend, 30000);
 }
 
 async function loadMovies(page) {
@@ -111,7 +154,6 @@ async function loadMovies(page) {
         const data = await response.json();
         currentData = Array.isArray(data) ? data : [];
         
-        // For search, show all results without pagination
         if (searchQuery) {
             renderMovies(currentData);
             renderPagination(1, 1);
@@ -124,6 +166,7 @@ async function loadMovies(page) {
         
         hideLoader();
     } catch (error) {
+        console.error('Error loading movies:', error);
         showError('Service waking up...');
         setTimeout(() => loadMovies(page), 2000);
     }
@@ -162,8 +205,47 @@ async function loadSeries(page) {
         
         hideLoader();
     } catch (error) {
+        console.error('Error loading series:', error);
         showError('Service waking up...');
         setTimeout(() => loadSeries(page), 2000);
+    }
+}
+
+// FIXED: Fetch series details with episodes from the correct endpoint
+async function fetchSeriesDetails(seriesId) {
+    try {
+        console.log('Fetching series details for ID:', seriesId);
+        
+        // Based on your JSON, the endpoint should be: /api/series/{id}
+        const response = await fetch(`${config.base}/api/series/${seriesId}`, {
+            headers: { 'x-api-key': config.key }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Series details fetched:', data);
+        
+        // Check if we have seasons data
+        if (!data.seasons || !Array.isArray(data.seasons)) {
+            console.warn('No seasons data found in response');
+            data.seasons = [];
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error('Error fetching series details:', error);
+        
+        // Create fallback data structure based on your JSON example
+        return {
+            id: seriesId,
+            name: "Series Details",
+            overview: "Unable to load details. Please try again.",
+            seasons: []
+        };
     }
 }
 
@@ -180,7 +262,7 @@ function renderMovies(movies) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-            <img src="${movie.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\"></text></svg>
+            <img src="${movie.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
             <div class="card-info">
                 <div class="card-title">${movie.title || 'Unknown'}</div>
                 <div class="card-meta">${movie.vote_average ? '★ ' + movie.vote_average : ''} ${movie.release_date ? '• ' + movie.release_date.substring(0,4) : ''}</div>
@@ -204,7 +286,7 @@ function renderSeries(series) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-            <img src="${item.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\"></text></svg>
+            <img src="${item.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
             <div class="card-info">
                 <div class="card-title">${item.name || 'Unknown'}</div>
                 <div class="card-meta">${item.vote_average ? '★ ' + item.vote_average : ''} ${item.first_air_date ? '• ' + item.first_air_date.substring(0,4) : ''}</div>
@@ -283,19 +365,27 @@ function showMovieDetails(movie) {
     const modal = document.getElementById('modal');
     const content = document.getElementById('modalContent');
     
-    const videoUrl = movie.video_url || (movie.videos && movie.videos[0]?.link) || '#';
+    // Try to get video URL from the movie data
+    let videoUrl = '';
+    if (movie.videos && movie.videos.length > 0) {
+        videoUrl = movie.videos[0].link;
+    } else if (movie.video_url) {
+        videoUrl = movie.video_url;
+    }
     
     content.innerHTML = `
         <h2>${movie.title}</h2>
         <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin:20px 0;">
-            <img src="${movie.poster_path || ''}" style="width:100%;border-radius:5px;">
+            <img src="${movie.poster_path || ''}" style="width:100%;border-radius:5px;" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
             <div>
                 <p><strong>Release:</strong> ${movie.release_date || 'N/A'}</p>
                 <p><strong>Rating:</strong> ${movie.vote_average || 'N/A'}/10</p>
                 <p><strong>Runtime:</strong> ${movie.runtime || 'N/A'} min</p>
-                <p><strong>Genres:</strong> ${movie.genresname || 'N/A'}</p>
+                <p><strong>Genres:</strong> ${movie.genresname || movie.genres?.map(g => g.name).join(', ') || 'N/A'}</p>
                 <p style="margin-top:10px;">${movie.overview || 'No description'}</p>
-                ${videoUrl !== '#' ? `<button style="background:#00a8ff;color:#fff;border:none;padding:10px 20px;margin-top:20px;border-radius:5px;cursor:pointer" onclick="window.open('${videoUrl}', '_blank')">▶ Watch Now</button>` : ''}
+                ${videoUrl ? `<button style="background:#00a8ff;color:#fff;border:none;padding:10px 20px;margin-top:20px;border-radius:5px;cursor:pointer" onclick="playVideo('${videoUrl}', '${movie.title}')">
+                    ▶ Watch Now
+                </button>` : ''}
             </div>
         </div>
     `;
@@ -303,71 +393,74 @@ function showMovieDetails(movie) {
     modal.style.display = 'block';
 }
 
-function showSeriesDetails(series) {
+// UPDATED: Display series with REAL episodes from API
+async function showSeriesDetails(series) {
     const modal = document.getElementById('modal');
     const content = document.getElementById('modalContent');
     
+    // Store basic series info
+    currentSeriesDetails = {
+        id: series.id,
+        name: series.name,
+        poster_path: series.poster_path,
+        overview: series.overview,
+        first_air_date: series.first_air_date,
+        vote_average: series.vote_average,
+        genresname: series.genresname
+    };
+    
+    // Show basic info immediately
     content.innerHTML = `
         <h2>${series.name}</h2>
         <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin:20px 0;">
-            <img src="${series.poster_path || ''}" style="width:100%;border-radius:5px;">
+            <img src="${series.poster_path || ''}" style="width:100%;border-radius:5px;" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
             <div>
                 <p><strong>First Air:</strong> ${series.first_air_date || 'N/A'}</p>
                 <p><strong>Rating:</strong> ${series.vote_average || 'N/A'}/10</p>
-                <p><strong>Seasons:</strong> ${series.seasons?.length || 0}</p>
                 <p><strong>Genres:</strong> ${series.genresname || 'N/A'}</p>
                 <p style="margin-top:10px;">${series.overview || 'No description'}</p>
             </div>
         </div>
-        ${series.seasons && series.seasons.length > 0 ? `
-        <h3 style="margin-top:20px;">Seasons</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
-            ${series.seasons.map(season => `
-                <div style="background:#333;padding:10px;border-radius:5px;width:100px;text-align:center;">
-                    <div>Season ${season.season_number}</div>
-                    <div style="font-size:12px;color:#aaa;">${season.episodes?.length || 0} episodes</div>
-                </div>
-            `).join('')}
+        <div id="episodesLoading" style="text-align:center;padding:20px;color:#00a8ff;">
+            <div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>
+            Loading episodes...
         </div>
-        ` : ''}
     `;
     
     modal.style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('modal').style.display = 'none';
-}
-
-function showLoader() {
-    document.getElementById('loader').style.display = 'block';
-}
-
-function hideLoader() {
-    document.getElementById('loader').style.display = 'none';
-}
-
-function showError(msg) {
-    const grid = document.getElementById(currentTab + 'Grid');
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#00a8ff">${msg}</div>`;
-    hideLoader();
-}
-
-async function checkBackend() {
+    
+    // Fetch detailed series data with episodes
     try {
-        await fetch(config.base, { timeout: 5000 });
-    } catch (e) {
-        console.log('Backend check');
-    }
-}
-
-// Close modal on outside click
-window.onclick = function(event) {
-    const modal = document.getElementById('modal');
-    if (event.target == modal) {
-        closeModal();
-    }
-}
-</script>
-</body>
-</html>
+        const seriesDetails = await fetchSeriesDetails(series.id);
+        
+        // Update currentSeriesDetails with full data
+        currentSeriesDetails = seriesDetails;
+        
+        // Generate episodes HTML
+        let episodesHtml = '';
+        
+        if (seriesDetails.seasons && seriesDetails.seasons.length > 0) {
+            episodesHtml = `<h3 style="margin-top:20px;margin-bottom:15px;">Seasons & Episodes</h3>`;
+            
+            // Sort seasons by season number (from your JSON, season 2 comes first, so we sort)
+            const sortedSeasons = [...seriesDetails.seasons].sort((a, b) => a.season_number - b.season_number);
+            
+            sortedSeasons.forEach(season => {
+                // Skip season 0 (specials) if present
+                if (season.season_number === 0) return;
+                
+                const episodeCount = season.episodes ? season.episodes.length : 0;
+                
+                episodesHtml += `
+                    <div class="season-section">
+                        <div class="season-header" onclick="toggleSeason(${season.season_number})">
+                            <span><strong>${season.name || 'Season ' + season.season_number}</strong> (${episodeCount} episodes)</span>
+                            <span style="color:#00a8ff;">▼</span>
+                        </div>
+                        <div id="season-${season.season_number}" class="episode-list">
+                `;
+                
+                // Check if we have episodes
+                if (season.episodes && season.episodes.length > 0) {
+                    // Sort episodes by episode number
+                    const sortedEpisodes = [...season.episodes].sort((a, b)
