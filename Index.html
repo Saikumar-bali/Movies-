@@ -262,7 +262,7 @@ function renderMovies(movies) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-            <img src="${movie.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
+            <img src="${movie.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>
             <div class="card-info">
                 <div class="card-title">${movie.title || 'Unknown'}</div>
                 <div class="card-meta">${movie.vote_average ? '★ ' + movie.vote_average : ''} ${movie.release_date ? '• ' + movie.release_date.substring(0,4) : ''}</div>
@@ -286,7 +286,7 @@ function renderSeries(series) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-            <img src="${item.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
+            <img src="${item.poster_path || ''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>
             <div class="card-info">
                 <div class="card-title">${item.name || 'Unknown'}</div>
                 <div class="card-meta">${item.vote_average ? '★ ' + item.vote_average : ''} ${item.first_air_date ? '• ' + item.first_air_date.substring(0,4) : ''}</div>
@@ -376,7 +376,7 @@ function showMovieDetails(movie) {
     content.innerHTML = `
         <h2>${movie.title}</h2>
         <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin:20px 0;">
-            <img src="${movie.poster_path || ''}" style="width:100%;border-radius:5px;" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
+            <img src="${movie.poster_path || ''}" style="width:100%;border-radius:5px;" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>
             <div>
                 <p><strong>Release:</strong> ${movie.release_date || 'N/A'}</p>
                 <p><strong>Rating:</strong> ${movie.vote_average || 'N/A'}/10</p>
@@ -413,7 +413,7 @@ async function showSeriesDetails(series) {
     content.innerHTML = `
         <h2>${series.name}</h2>
         <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin:20px 0;">
-            <img src="${series.poster_path || ''}" style="width:100%;border-radius:5px;" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>'">
+            <img src="${series.poster_path || ''}" style="width:100%;border-radius:5px;" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 300\"><rect width=\"200\" height=\"300\" fill=\"%23222\"/><text x=\"100\" y=\"150\" font-family=\"Arial\" font-size=\"14\" fill=\"%2300a8ff\" text-anchor=\"middle\">No Image</text></svg>
             <div>
                 <p><strong>First Air:</strong> ${series.first_air_date || 'N/A'}</p>
                 <p><strong>Rating:</strong> ${series.vote_average || 'N/A'}/10</p>
@@ -463,4 +463,204 @@ async function showSeriesDetails(series) {
                 // Check if we have episodes
                 if (season.episodes && season.episodes.length > 0) {
                     // Sort episodes by episode number
-                    const sortedEpisodes = [...season.episodes].sort((a, b)
+                    const sortedEpisodes = [...season.episodes].sort((a, b) => a.episode_number - b.episode_number);
+                    
+                    sortedEpisodes.forEach(episode => {
+                        // Check if episode has videos
+                        const hasVideos = episode.videos && episode.videos.length > 0;
+                        
+                        episodesHtml += `
+                            <div class="episode-item">
+                                <div style="display:flex;align-items:flex-start;">
+                                    <span class="episode-number">E${episode.episode_number}</span>
+                                    <div class="episode-title" style="flex:1;">
+                                        <strong>${episode.name || 'Episode ' + episode.episode_number}</strong>
+                                        ${episode.air_date ? `<div style="font-size:11px;color:#888;margin-top:2px;">Aired: ${episode.air_date}</div>` : ''}
+                                        ${episode.overview ? `<div style="font-size:12px;color:#aaa;margin-top:5px;">${truncateText(episode.overview, 150)}</div>` : ''}
+                                        
+                                        ${hasVideos ? `
+                                            <div class="quality-options">
+                                                ${episode.videos.map((video, index) => `
+                                                    <button class="quality-btn ${index === 0 ? 'active' : ''}" 
+                                                            onclick="playEpisodeVideo('${video.link}', '${seriesDetails.name} - S${season.season_number}E${episode.episode_number} - ${video.server}', ${season.season_number}, ${episode.episode_number}, ${index}, this)">
+                                                        ${video.server} (${video.lang})
+                                                    </button>
+                                                `).join('')}
+                                            </div>
+                                            <button class="play-btn" onclick="playEpisodeVideo('${episode.videos[0].link}', '${seriesDetails.name} - S${season.season_number}E${episode.episode_number} - ${episode.videos[0].server}', ${season.season_number}, ${episode.episode_number}, 0)">
+                                                ▶ Play ${episode.videos[0].server}
+                                            </button>
+                                        ` : `
+                                            <div style="color:#888;font-size:11px;margin-top:5px;">No video available</div>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    episodesHtml += `<div style="color:#666;text-align:center;padding:20px;">No episodes available for this season</div>`;
+                }
+                
+                episodesHtml += `
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            episodesHtml = `<div style="color:#666;text-align:center;padding:20px;margin-top:20px;">
+                <p>No episode information available</p>
+            </div>`;
+        }
+        
+        // Replace loading message with episodes
+        document.getElementById('episodesLoading').outerHTML = episodesHtml;
+        
+    } catch (error) {
+        console.error('Error loading series details:', error);
+        document.getElementById('episodesLoading').outerHTML = `
+            <div style="color:#e74c3c;text-align:center;padding:20px;margin-top:20px;">
+                <p>Error loading episodes: ${error.message}</p>
+                <button style="background:#00a8ff;color:white;border:none;padding:8px 16px;border-radius:4px;margin-top:10px;cursor:pointer" 
+                        onclick="retryLoadEpisodes(${series.id})">
+                    Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+// NEW: Play episode video with quality selection
+function playEpisodeVideo(videoUrl, title, seasonNumber, episodeNumber, videoIndex, buttonElement = null) {
+    // Update active quality button
+    if (buttonElement) {
+        document.querySelectorAll('.quality-btn').forEach(btn => btn.classList.remove('active'));
+        buttonElement.classList.add('active');
+    }
+    
+    playVideo(videoUrl, title);
+}
+
+// NEW: Play video in modal player (same for movies and episodes)
+function playVideo(videoUrl, title) {
+    const videoModal = document.getElementById('videoModal');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoTitle = document.getElementById('videoTitle');
+    
+    // Set video source and title
+    videoPlayer.src = videoUrl;
+    videoTitle.textContent = title;
+    
+    // Close detail modal and open video modal
+    closeModal();
+    videoModal.style.display = 'block';
+    
+    // Try to play the video
+    videoPlayer.load();
+    const playPromise = videoPlayer.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            console.error('Error playing video:', error);
+            // Show error message
+            videoTitle.textContent = `Error playing: ${title}`;
+            document.getElementById('videoDescription').innerHTML = `
+                <div style="color:#e74c3c;">
+                    <p>Unable to play video. This could be due to:</p>
+                    <ul style="margin-left:20px;margin-top:5px;">
+                        <li>Video format not supported</li>
+                        <li>Network issue</li>
+                        <li>Video might be protected</li>
+                    </ul>
+                    <p style="margin-top:10px;">Try downloading instead or using a different quality.</p>
+                </div>
+            `;
+        });
+    }
+}
+
+// Close video modal
+function closeVideoModal() {
+    const videoModal = document.getElementById('videoModal');
+    const videoPlayer = document.getElementById('videoPlayer');
+    
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    videoModal.style.display = 'none';
+}
+
+// Helper functions for episodes
+function toggleSeason(seasonNumber) {
+    const episodeList = document.getElementById(`season-${seasonNumber}`);
+    const seasonHeader = event.currentTarget;
+    
+    if (episodeList.style.display === 'block') {
+        episodeList.style.display = 'none';
+        seasonHeader.querySelector('span:last-child').textContent = '▼';
+    } else {
+        episodeList.style.display = 'block';
+        seasonHeader.querySelector('span:last-child').textContent = '▲';
+    }
+}
+
+function retryLoadEpisodes(seriesId) {
+    const series = currentData.find(s => s.id === seriesId);
+    if (series) {
+        showSeriesDetails(series);
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+function showLoader() {
+    document.getElementById('loader').style.display = 'block';
+}
+
+function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+}
+
+function showError(msg) {
+    const grid = document.getElementById(currentTab + 'Grid');
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#00a8ff">${msg}</div>`;
+    hideLoader();
+}
+
+async function checkBackend() {
+    try {
+        await fetch(config.base, { timeout: 5000 });
+    } catch (e) {
+        console.log('Backend check');
+    }
+}
+
+// Helper function to truncate text
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+// Close modals on outside click
+window.onclick = function(event) {
+    const modal = document.getElementById('modal');
+    const videoModal = document.getElementById('videoModal');
+    
+    if (event.target == modal) {
+        closeModal();
+    }
+    if (event.target == videoModal) {
+        closeVideoModal();
+    }
+}
+
+// Expose functions globally
+window.toggleSeason = toggleSeason;
+window.playEpisodeVideo = playEpisodeVideo;
+window.retryLoadEpisodes = retryLoadEpisodes;
+window.playVideo = playVideo;
+</script>
+</body>
+</html>
